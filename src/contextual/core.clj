@@ -108,9 +108,63 @@
       :title "Recursion"
       :renderer :opengl
       :setup setup
-      :draw draw_kaleid2
+      :draw draw_kaleid
       :mouse-moved mouse-moved
       :size [width height])))
 
 (defn -main []
   (start))
+
+
+
+; ------------------ 
+; Experimental stuff
+; ------------------
+
+(defn rule [subrule {:as args}]
+  (list
+    subrule
+    (merge {:xscale 1 :yscale 1 :scale 1 :xtrans 0 :ytrans 0 :rotate 0
+            :xshear 0 :yshear 0 :hue 0 :sat 0 :brightness 0 :alpha 0}
+           args)))
+; This definition of 'rule' still needs to include in 'subrule' somehow too.
+; It also needs to include multiple shapes in sequence.
+
+; If we use something like this:
+; (def someshape (othershape { :xscale 0.5 :yscale 0.5 :xtrans 1 :ytrans 1 }))
+; Then what is 'othershape'? It can't be from a definition like this, for it
+; is not a function, yet this is a function call. So that is not valid.
+
+; Try something like this:
+(def othershape nil)
+(def moreshapes nil)
+(def someshape (rule othershape { :xscale 0.5 :yscale 0.5 :xtrans 1 :ytrans 1 }
+                     moreshapes { :xscale 0.25 :yscale 0.25 }))
+(def shapefoo (rule-choose 0.1 shape1
+                           0.2 shape2))
+; Then this at least is consistent, albeit 'rule' still must be defined.
+; All terms passed in as keyword args are evaluted. 'othershape' is okay to be
+; evaluated, in fact, it should be evaluated.
+
+; Then what is 'rule'? Need it return anything more than a validated version
+; of its inputs? (That is, the dependent rules, and the whole map which is
+; passed in - which now has defaults applied, for instance).
+
+; This needs to work and I'm not sure it does:
+(def recursive_shape2 (rule recursive_shape2 { :xscale 0.25 :yscale 0.25 }))
+
+; If this convention is followed:
+;  - The maps contain transformations, and these maps can be handled as single
+; values, e.g.
+(def xform { :xscale 0.25 :yscale 0.25 :rotate 0.1 })
+(def squares (rule blah xform))
+
+; Questions to still handle:
+; (1) How will I handle loops and tiling? How much of Lisp's parsing/evaluating
+; do I retain access to?
+; (2) Process of: (rule...) -> scene graph -> API calls/directives (P5, OpenGL,
+; Canvas, SVG, PDF...)
+; (3) What if the AST could include in parts of a scene graph?
+; (4) What is the null shape, for those cases where recursion should terminate
+; based on some probability value?
+; (5) How do we handle bailout from recursion? 

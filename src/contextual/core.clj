@@ -121,14 +121,35 @@
 ; Experimental stuff
 ; ------------------
 
-(defn rule [subrule {:as args}]
-  (list
-    subrule
-    (merge {:xscale 1 :yscale 1 :scale 1 :xtrans 0 :ytrans 0 :rotate 0
-            :xshear 0 :yshear 0 :hue 0 :sat 0 :brightness 0 :alpha 0}
-           args)))
-; This definition of 'rule' still needs to include in 'subrule' somehow too.
-; It also needs to include multiple shapes in sequence.
+; Return the default transform map, letting 'xform' override what is there;
+; e.g. (default-xform { :xscale 0.5 :yscale 0.5 })
+(defn default-xform [{:as xform}]
+  (merge {:xscale 1 :yscale 1 :scale 1 :xtrans 0 :ytrans 0 :rotate 0
+          :xshear 0 :yshear 0 :hue 0 :sat 0 :brightness 0 :alpha 0}
+         xform))
+; todo: fix scale/xscale/yscale inconsistency
+
+; Generate a rule tree, given any number of arguments alternating subrule
+; and transform, e.g.
+; e.g. (rule shape1 { :xscale 0.5 }
+;            shape2 { :yscale 0.5 :rotate 0.1 })
+(defn rule [& arglist]
+  ; Split 'arglist' into subrule/xform pairs; use 'xform' to override defaults:
+  (map (fn [pair] (let [[subrule xform] pair]
+                    (list subrule (default-xform xform))))
+       (partition 2 arglist)))
+
+; Process a rule tree
+(defn walk_rules [rule-tree]
+  nil)
+; If this is recursive, then it needs to return things we can compose.
+
+; --- Code above, notes below ---
+
+; Next piece: We need the code that walks the tree of rules and turns it into
+; something else. Is that something else a scene graph, or is it direct
+; commands into an API? Do we need a scene graph? We will for SVG, but for
+; other representations we might do just as well without one.
 
 ; If we use something like this:
 ; (def someshape (othershape { :xscale 0.5 :yscale 0.5 :xtrans 1 :ytrans 1 }))
@@ -167,4 +188,8 @@
 ; (3) What if the AST could include in parts of a scene graph?
 ; (4) What is the null shape, for those cases where recursion should terminate
 ; based on some probability value?
-; (5) How do we handle bailout from recursion? 
+; (5) How do we handle bailout from recursion?
+; (6) At some point, all my rules must reduce down to primitives. What are my
+; primitives? Particularly, in a Clojure sense, how do I make them?
+; (7) How do I represent randomness in the rules? i.e. like my rule-choose
+; structure

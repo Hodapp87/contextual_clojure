@@ -1,0 +1,23 @@
+Observations, possibly relevant, from the standpoint of not being particularly
+familiar with Clojure and having a little experience with Lisp and Scala:
+
+ - When I've been working mainly with OOP in C++, Java, and Python, and some
+amount of lower-level C coding - all of these being imperative paradigm in
+which you manage state - working with immutability feels very different, and
+this is on top of functional programming already being a rather different
+approach.
+I feel like, from the start, the focus has to change from how you'll move the
+state around to how you'll build a structure that your data just sort of
+flows around. Sometimes, it's more static structures; other times, it's almost
+like you are building machines that assemble themselves, do what they need,
+and then are gone.
+ - If I make a lazy sequence such as (iterate (fn [x] (+ x 1)) 1) then is
+Counterclockwise incapable of displaying it in the REPL? It throws an
+OutOfMemoryError when I try. clojurebot in Freenode #clojure, though, just
+displays (1 2 3 4 5 ...). However, it seems this is more a result of
+Clojure REPLs in general than anything of CCW.
+ - Eclipse & Counterclockwise are a nice combination for developing Clojure,
+however, I find it sluggish sometimes. Getting Eclipse to peg the CPU usage
+at every keystroke is not difficult; for instance, if I enter the opening
+quotation mark of a string, then all typing until I enter the closing 
+quotation mark is extremely slow. 

@@ -4,7 +4,7 @@
 (ns contextual.core
   (:use quil.core))
   
-(use 'clojure.repl)
+; (use 'clojure.repl)
   
 (defn setup []
   (smooth)
@@ -125,54 +125,65 @@
 ; e.g. (default-xform { :xscale 0.5 :yscale 0.5 })
 (defn default-xform [{:as xform}]
   (merge {:xscale 1 :yscale 1 :scale 1 :xtrans 0 :ytrans 0 :rotate 0
-          :xshear 0 :yshear 0 :hue 0 :sat 0 :brightness 0 :alpha 0}
+          :xshear 0 :yshear 0 :hue 0 :sat 0 :brightness 0 :alpha 0
+          :child nil}
          xform))
 ; todo: fix scale/xscale/yscale inconsistency
 
-; Generate a rule tree, given any number of arguments alternating subrule
-; and transform, e.g.
-; e.g. (rule shape1 { :xscale 0.5 }
-;            shape2 { :yscale 0.5 :rotate 0.1 })
+; Generate a rule tree given a list of transform properties, e.g.
+; e.g. (rule { :xscale 0.5 :child shape1 }
+;            { :yscale 0.5 :rotate 0.1 })
+; If the :child property is nil or is not given, then this is treated as the
+; rule instantiating itself recursively.
 (defn rule [& arglist]
-  ; Split 'arglist' into subrule/xform pairs; use 'xform' to override defaults:
-  (map (fn [pair] (let [[subrule xform] pair]
-                    (list subrule (default-xform xform))))
-       (partition 2 arglist)))
+  (map default-xform arglist))
 
-; Process a rule tree
-(defn walk_rules [rule-tree]
-  nil)
-; If this is recursive, then it needs to return things we can compose.
+; Primitives (tentatively)
+(def square (symbol "square"))
+(def circle (symbol "circle"))
+; (def triangle (symbol "triangle"))
+; this will conflict as long as we have :use quil.core
 
 ; --- Code above, notes below ---
+
+; Where I have left off:
+;  - If I need rules to be mutually recursive - and honestly, for most of what
+; I have done in CF, this is essential - then I cannot evaluate them right
+; away.
+;  - Look into, perhaps, the use of trampolines here, and structure the rules
+; as functions which generate rules.
 
 ; Next piece: We need the code that walks the tree of rules and turns it into
 ; something else. Is that something else a scene graph, or is it direct
 ; commands into an API? Do we need a scene graph? We will for SVG, but for
 ; other representations we might do just as well without one.
 
-; If we use something like this:
-; (def someshape (othershape { :xscale 0.5 :yscale 0.5 :xtrans 1 :ytrans 1 }))
-; Then what is 'othershape'? It can't be from a definition like this, for it
-; is not a function, yet this is a function call. So that is not valid.
+; Process a rule tree
+(defn walk_rules [rule-tree]
+  nil)
+; If this is recursive, then it needs to return things we can compose,
+; and we need to decide what it produces or what it modifies (latter only
+; if it is to operate directly via side-effects)
 
-; Try something like this:
+; You don't need to answer whether or not it's a scene graph. You can just
+; generate an AST that happens to be a scene graph and also happens to be the
+; code that visualizes it, given an appropriate set of bindings.
+
+; A rule tree can be recursive and can be non-deterministic. A scene graph -
+; I think - should have both of these traits eliminated.
+
 (def othershape nil)
 (def moreshapes nil)
 (def someshape (rule othershape { :xscale 0.5 :yscale 0.5 :xtrans 1 :ytrans 1 }
                      moreshapes { :xscale 0.25 :yscale 0.25 }))
-(def shapefoo (rule-choose 0.1 shape1
-                           0.2 shape2))
-; Then this at least is consistent, albeit 'rule' still must be defined.
-; All terms passed in as keyword args are evaluted. 'othershape' is okay to be
-; evaluated, in fact, it should be evaluated.
-
-; Then what is 'rule'? Need it return anything more than a validated version
-; of its inputs? (That is, the dependent rules, and the whole map which is
-; passed in - which now has defaults applied, for instance).
+;(def shapefoo (rule-choose 0.1 shape1
+;                           0.2 shape2))
 
 ; This needs to work and I'm not sure it does:
-(def recursive_shape2 (rule recursive_shape2 { :xscale 0.25 :yscale 0.25 }))
+(def recursive_shape6 (rule recursive_shape6 { :xscale 0.25 :yscale 0.25 }))
+
+; There is also no way to make a rule, just with (rule...), which refers to
+; itself. This is, very likely, my entire issue.
 
 ; If this convention is followed:
 ;  - The maps contain transformations, and these maps can be handled as single
@@ -193,3 +204,8 @@
 ; primitives? Particularly, in a Clojure sense, how do I make them?
 ; (7) How do I represent randomness in the rules? i.e. like my rule-choose
 ; structure
+
+
+(let [a 1
+      expr '(+ a 1)]
+  (eval expr))

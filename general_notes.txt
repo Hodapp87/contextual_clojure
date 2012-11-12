@@ -20,4 +20,31 @@ Clojure REPLs in general than anything of CCW.
 however, I find it sluggish sometimes. Getting Eclipse to peg the CPU usage
 at every keystroke is not difficult; for instance, if I enter the opening
 quotation mark of a string, then all typing until I enter the closing 
-quotation mark is extremely slow. 
+quotation mark is extremely slow.
+
+
+My attempts to use Emacs for Clojure development:
+ - get Clojure Mode by adding this to ~/.emacs.d/init.el:
+(require 'package)
+(add-to-list 'package-archives
+             '("marmalade" . "http://marmalade-repo.org/packages/"))
+(package-initialize)
+ - then M-x package-install [RET] clojure-mode [RET]
+ - This successfully gave me clojure-mode with syntax highlighting and such.
+
+ - M-x run-lisp needs the 'lein' command to be available.
+ - Using http://paste.lisp.org/display/132476 does not help this ('lein' is in
+my path already).
+
+ - Added this to init.el:
+(setq inferior-lisp-program "lein repl")
+;; where is lein located? If it's not in a "standard path, add a line like this.
+(add-to-list 'exec-path "/Users/gene/bin")
+;; on OSX make the command key the meta key
+;; (setq ns-command-modifier 'meta)
+
+ - Restarted Emacs, then M-x run-lisp worked.
+ - C-x C-e evaluates Clojure. This is good.
+ - N.B. M-x m for help on the mode? (what? not getting anything here)
+
+ - I still haven't touched Paredit. For later perhaps?

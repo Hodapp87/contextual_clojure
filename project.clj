@@ -6,5 +6,5 @@
   :dependencies [[org.clojure/clojure "1.4.0"]
                  [quil "1.6.0"]]
   ;:main ^{:skip-aot true} for-the-glory-of-art
-  :main for-the-glory-of-art
+  :main contextual.core
   )

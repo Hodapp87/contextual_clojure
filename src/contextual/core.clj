@@ -3,8 +3,7 @@
 ; here)   
 (ns contextual.core
   (:use quil.core))
-
-                                        ; (use 'clojure.repl)
+;(use 'clojure.repl)
 
 (defn setup []
   (smooth)
@@ -15,6 +14,35 @@
 (defn mouse-moved []
   (let [x (mouse-x)  y (mouse-y)]
     (reset! (state :mouse-position) [x y])))
+
+
+
+; Return the default transform map, letting 'xform' override what is there;
+; e.g. (default-xform { :xscale 0.5 :yscale 0.5 })
+(defn default-xform [{:as xform}]
+  (merge {:xscale 1 :yscale 1 :scale 1 :xtrans 0 :ytrans 0 :rotate 0
+          :xshear 0 :yshear 0 :hue 0 :sat 0 :brightness 0 :alpha 0
+          :child []}
+         xform))
+; todo: fix scale/xscale/yscale inconsistency
+
+; Generate a rule tree given a list of transform properties, e.g.
+; e.g. (rule { :xscale 0.5 :child shape1 }
+;            { :yscale 0.5 :rotate 0.1 })
+; If the :child property is nil or is not given, then this is treated as the
+; rule instantiating itself recursively.
+(defn rule [& arglist]
+  (map default-xform arglist))
+
+; Primitives (tentatively)
+(def square (symbol "square"))
+(def circle (symbol "circle"))
+;; (def triangle (symbol "triangle"))
+;; this will conflict as long as we have :use quil.core
+
+;; This is a special symbol that, when used as a child in a rule, signifies
+;; that the rule is to instantiate itself recursively.
+(def self (symbol "self"))
 
 ; If we lack the ability to explicitly get at our transformation matrix, then
 ; we will have a hard time figuring out what the bounds of our canvas are.

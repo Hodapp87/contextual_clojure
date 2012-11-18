@@ -38,13 +38,19 @@
 (defn rule [ref & xformlist]
   (cons ref (map default-xform xformlist)))
 
+;; By convention: If no xform list is given, then this rule is taken as a
+;; reference that will be resolved later.
+;; Why this is here: Suppose you're trying to define rule A.  Rule A invokes
+;; rule B.  Rule B itself invokes rule A.  While this is a perfectly valid
+;; recursive definition, we can't express this directly.
+
 ;; Primitives (tentatively)
 (def square (symbol "square"))
 (def circle (symbol "circle"))
 ;; (def triangle (symbol "triangle"))
 ;; this will conflict as long as we have :use quil.core
 
-;; Compose two transforms
+;; Compose two transforms, xf1 and xf2
 (defn compose-transform [xf1 xf2]
   ;; All of the values on compose-fn are the functions which compose two
   ;; parameters in a transform (i.e. :xscale is *, which means that if you
@@ -59,25 +65,44 @@
           (map (fn [op] [op ((compose-fn op) (xf1 op) (xf2 op))])
                (keys compose-fn)))))
 
-(defn rule-trampoline [rule-tree tree-map]
-  ;; What we need to keep track of: Current transform.
-  ;; What we need to pass on: A tree; a map of any ref'ed symbols to resolve
-  ;; (yes, technically, if this is trampolining then we need to pass a function
-  ;; call utilizing these)
-  ;; What we need to do: Inspect our tree and figure out how to recurse further.
-  ;; Breadth-first or depth-first? (If and only if multiple rules are present)
-  ;; We must compose the transform with the next. We must also bail out at some
-  ;; point. Bailing out doesn't mean quitting the function - it could also mean
-  ;; moving onto another rule because the chain we've been on is drawing too
-  ;; small.
-  ;; We also don't handle any sort of randomness, hmmm...
-  (let [ref (first rule-tree)
-        xforms (rest rule-tree)
-        next-map (assoc tree-map ref rule-tree)]
-    ;; Here is where you left off.
-    nil)
+;; Observation: Anyplace where our tree splits into multiple branches, we must
+;; maintain some sort of stack for backtracking, definitely if we're doing
+;; depth-first, maybe even if we're doing breadth-first.
 
-;; This is not yet organized:
+;; rule-tree: The tree which we're going to walk.
+;; tree-map: A map from ref symbols to trees, should we need it.
+;; local-xform: The current transform on our stack.
+(defn rule-walk [rule-tree tree-map local-xform]
+  (let [ref (first rule-tree)
+        xforms (rest rule-tree)]
+    (if (empty? xforms)
+      ;; Resolve a reference first if needed.
+      ;; TODO: Make this call fail more gracefully for an undefined reference
+      ;; (i.e. 'ref' is not in tree-map)
+      (rule-walk (tree-map ref) tree-map local-xform)
+      ;; Otherwise, see if we're drawing so small by now that we can just stop.
+      ;; TODO: Make this not a constant. Set it based on pixel size.
+      (if (or (> (local-xform :xscale) 0.001)
+              (> (local-xform :yscale) 0.001))
+        (do
+          ;; Add rule-tree to the map of references, in case some rule inside it
+          ;; needed to reference it recursively.
+          (let [next-map (assoc tree-map ref rule-tree)]
+            (map (fn [branch]
+                   (rule-walk (branch :child)
+                              next-map
+                              (compose-transform local-xform branch)))
+                 xforms))
+          (
+           ;; side-effect stuff here... (this function doesn't draw anything
+           ;; yet)
+           ;; Other curious part: where do primitives actually go?  How do I
+           ;; detect them?  Right now I have a lovely tree that expresses
+           ;; transforms and recursive relationships, but no substance!
+           )
+          )))))
+
+;; This is not yet organized, but is known to function mostly right:
 
 ;; shapefn is a function which draws the shape in question. For the sake of
 ;; sanity, it should always draw it centered at the origin; if this means

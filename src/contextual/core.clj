@@ -17,32 +17,26 @@
 
 ;; This is not.
 
-;; Return the default transform map, letting 'xform' override what is there;
-;; e.g. (default-xform { :xscale 0.5 :yscale 0.5 })
-(defn default-xform [{:as xform}]
-  (merge {:xscale 1 :yscale 1 :xtrans 0 :ytrans 0 :rotate 0
-          :xshear 0 :yshear 0 :hue 0 :sat 0 :brightness 0 :alpha 0
-          :child nil}
-         xform))
+;; instance: An invocation of another shape, combined with a transform.
+;; 'type' can take 3 values:
+;; :prim when 'child' is a primitive.
+;; :ref when 'child' is an ID to resolve later (mainly for recursive cases)
+;; nil when 'child' is a rule list
+;; (Also a possibility for the last case: another type for randomness? For
+;; repetition? Does that go here?)
+(defn instance [child type xform]
+  (assoc (default-xform xform) :child child :type type))
+
+;; Return the default transform map, letting parameters in 'instance' override
+;; what is there; e.g. (default-xform { :xscale 0.5 :yscale 0.5 })
+(defn default-xform [{:as instance}]
+  (merge {:xscale 1 :yscale 1 :xtrans 0 :ytrans 0 :rotate 0 :xshear 0 :yshear 0
+          :hue 0 :sat 0 :brightness 0 :alpha 0} instance))
 ;; todo: fix scale/xscale/yscale inconsistency
 
-;; Generate a rule tree given a list of transform properties, e.g.
-;; e.g. (rule rulename
-;;            { :xscale 0.5 :child shape1 }
-;;            { :yscale 0.5 :rotate 0.1 })
-;; 'ref' is an identifier - symbol, string, whatever you want. But if you want
-;; to refer to this rule from a :child field anywhere inside of this, you must
-;; use this same identifier there.
-;; Return value is like (ref xform xform xform...), where xform is a map with
-;; transform parameters.
-(defn rule [ref & xformlist]
-  (cons ref (map default-xform xformlist)))
-
-;; By convention: If no xform list is given, then this rule is taken as a
-;; reference that will be resolved later.
-;; Why this is here: Suppose you're trying to define rule A.  Rule A invokes
-;; rule B.  Rule B itself invokes rule A.  While this is a perfectly valid
-;; recursive definition, we can't express this directly.
+;; or should randomness and repetition go in this somehow?
+(defn rule [id & instances]
+  {:id id :rules instances})
 
 ;; Primitives (tentatively)
 (def square (symbol "square"))
@@ -69,38 +63,41 @@
 ;; maintain some sort of stack for backtracking, definitely if we're doing
 ;; depth-first, maybe even if we're doing breadth-first.
 
-;; rule-tree: The tree which we're going to walk.
-;; tree-map: A map from ref symbols to trees, should we need it.
+;; rule: The tree which we're going to walk.
+;; ref-map: A map from ref symbols to rules, should we need it.
 ;; local-xform: The current transform on our stack.
-(defn rule-walk [rule-tree tree-map local-xform]
-  (let [ref (first rule-tree)
-        xforms (rest rule-tree)]
-    (if (empty? xforms)
-      ;; Resolve a reference first if needed.
-      ;; TODO: Make this call fail more gracefully for an undefined reference
-      ;; (i.e. 'ref' is not in tree-map)
-      (rule-walk (tree-map ref) tree-map local-xform)
-      ;; Otherwise, see if we're drawing so small by now that we can just stop.
-      ;; TODO: Make this not a constant. Set it based on pixel size.
-      (if (or (> (local-xform :xscale) 0.001)
-              (> (local-xform :yscale) 0.001))
-        (do
-          ;; Add rule-tree to the map of references, in case some rule inside it
-          ;; needed to reference it recursively.
-          (let [next-map (assoc tree-map ref rule-tree)]
-            (map (fn [branch]
-                   (rule-walk (branch :child)
-                              next-map
-                              (compose-transform local-xform branch)))
-                 xforms))
-          (
-           ;; side-effect stuff here... (this function doesn't draw anything
-           ;; yet)
-           ;; Other curious part: where do primitives actually go?  How do I
-           ;; detect them?  Right now I have a lovely tree that expresses
-           ;; transforms and recursive relationships, but no substance!
-           )
-          )))))
+(defn rule-walk [rule ref-map local-xform]
+  (let [id (rule :id)]
+    ;; See if we're drawing so small by now that we can just stop.
+    ;; TODO: Make this not a constant. Set it based on pixel size.
+    (if (or (> (local-xform :xscale) 0.001)
+            (> (local-xform :yscale) 0.001))
+      ;; Add rule-tree to the map of references, in case some rule inside it
+      ;; needed to reference it recursively.
+      (let [next-map (assoc ref-map id rule)]
+        ;; Note that we call the result of invoke-rule.
+        (map #((invoke-rule % next-map local-xform))
+             (rule :rules))))))
+
+(defn invoke-rule [inst ref-map local-xform]
+  (let [instance (if (= (inst :type) :ref) ; resolve references if needed
+                   (ref-map (inst :child))
+                   inst)
+        next-xform (compose-transform local-xform inst)]
+    (do
+      (print "Ref-map " (keys ref-map))
+      ;;(print "\nInstance " instance)
+      (print "\nID " (instance :id))
+      (print "\nxform " next-xform)
+      (print "\n")
+      ;; N.B. We do not call the function here - we return a curried call,
+      ;; partially to conserve stack space and partially to let rule-walk be
+      ;; a little more flexible about what it chooses to do with the result.
+      #(rule-walk instance ref-map next-xform))))
+
+(def test-instance
+  (rule :test
+        (instance :test :ref { :xscale 0.25 :yscale 0.25 :xtrans 1 :ytrans 1 })))
 
 ;; This is not yet organized, but is known to function mostly right:
 
